@@ -1,0 +1,94 @@
+name: Update Profile Assets
+
+on:
+  schedule:
+    # Executa uma vez por dia às 04:17 no horário de São Paulo
+    - cron: "17 4 * * *"
+      timezone: "America/Sao_Paulo"
+
+  # Permite executar manualmente pelo GitHub
+  workflow_dispatch:
+
+concurrency:
+  group: profile-assets
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    name: Generate profile assets
+    runs-on: ubuntu-latest
+
+    steps:
+      # ---------------------------------------------------------
+      # Checkout
+      # ---------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ---------------------------------------------------------
+      # Pasta temporária onde ficarão os SVGs
+      # ---------------------------------------------------------
+      - name: Prepare dist directory
+        run: mkdir -p dist
+
+      # ---------------------------------------------------------
+      # Snake das contribuições
+      # ---------------------------------------------------------
+      - name: Generate contribution snake
+        uses: Platane/snk/svg-only@v3.5.0
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: |
+            dist/github-snake.svg
+            dist/github-snake-dark.svg?palette=github-dark
+
+      # ---------------------------------------------------------
+      # GitHub Stats
+      # Gera localmente ao invés de carregar da Vercel
+      # ---------------------------------------------------------
+      - name: Generate GitHub stats
+        uses: stats-organization/github-readme-stats-action@v2
+        with:
+          card: stats
+          options: >-
+            username=${{ github.repository_owner }}&
+            show_icons=true&
+            hide_border=true&
+            theme=transparent&
+            locale=pt-br
+          path: dist/stats.svg
+          token: ${{ github.token }}
+          fail_on_error: true
+
+      # ---------------------------------------------------------
+      # Linguagens
+      # ---------------------------------------------------------
+      - name: Generate top languages
+        uses: stats-organization/github-readme-stats-action@v2
+        with:
+          card: top-langs
+          options: >-
+            username=${{ github.repository_owner }}&
+            layout=compact&
+            langs_count=8&
+            hide_border=true&
+            theme=transparent&
+            locale=pt-br
+          path: dist/top-langs.svg
+          token: ${{ github.token }}
+          fail_on_error: true
+
+      # ---------------------------------------------------------
+      # Publicação dos arquivos na branch "output"
+      # ---------------------------------------------------------
+      - name: Publish generated assets
+        uses: crazy-max/ghaction-github-pages@v5.0.0
+        with:
+          target_branch: output
+          build_dir: dist
+          keep_history: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
